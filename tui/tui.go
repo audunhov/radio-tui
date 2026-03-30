@@ -22,28 +22,26 @@ const (
 )
 
 const (
-	// Layout constants
-	windowWidthBreakpoint = 80 // Width at which we switch to single-column layout
-	paneHeightOverhead    = 8  // Combined height of input (3), status (3), help (1), and spacing (1)
+	windowWidthBreakpoint = 80 // in characters
+	paneHeightOverhead    = 8
 
-	// Border offsets for list sizing
-	verticalBorderOffset   = 4 // Total height taken by list borders in single-column mode (2 lists * 2 border lines)
-	horizontalBorderOffset = 2 // Total height taken by list borders in two-column mode (1 list height * 2 border lines)
-	sidePaddingOffset      = 2 // Width taken by list borders (Left + Right)
+	verticalBorderOffset   = 4
+	horizontalBorderOffset = 2
+	sidePaddingOffset      = 2
 )
 
 var (
-	activeBorderColor   = lipgloss.Color("62")  // Purple
-	inactiveBorderColor = lipgloss.Color("240") // Dark gray
+	primaryColor  = lipgloss.Color("62")  // Purple
+	inactiveColor = lipgloss.Color("240") // Dark gray
 
-	activeBorderStyle   = lipgloss.NewStyle().Border(lipgloss.RoundedBorder()).BorderForeground(activeBorderColor)
-	inactiveBorderStyle = lipgloss.NewStyle().Border(lipgloss.RoundedBorder()).BorderForeground(inactiveBorderColor)
+	activeBorderStyle   = lipgloss.NewStyle().Border(lipgloss.RoundedBorder()).BorderForeground(primaryColor)
+	inactiveBorderStyle = lipgloss.NewStyle().Border(lipgloss.RoundedBorder()).BorderForeground(inactiveColor)
 
 	titleStyle        = lipgloss.NewStyle().MarginLeft(2)
 	itemStyle         = lipgloss.NewStyle().PaddingLeft(4)
-	selectedItemStyle = lipgloss.NewStyle().PaddingLeft(2).Foreground(lipgloss.Color("170"))
+	selectedItemStyle = lipgloss.NewStyle().PaddingLeft(4).Foreground(primaryColor)
 	paginationStyle   = list.DefaultStyles().PaginationStyle.PaddingLeft(4)
-	helpStyle         = lipgloss.NewStyle().Foreground(lipgloss.Color("240")).PaddingLeft(2)
+	helpStyle         = lipgloss.NewStyle().Foreground(inactiveColor).PaddingLeft(2)
 )
 
 type Model struct {
@@ -76,13 +74,21 @@ func NewModel(p *player.AudioService, s *storage.StorageService) Model {
 	ti.Prompt = "🔍 "
 	ti.Focus()
 
-	sl := list.New([]list.Item{}, list.NewDefaultDelegate(), 0, 0)
+	delegate := list.NewDefaultDelegate()
+	delegate.Styles.SelectedTitle = delegate.Styles.SelectedTitle.
+		Foreground(primaryColor).
+		BorderLeftForeground(primaryColor)
+	delegate.Styles.SelectedDesc = delegate.Styles.SelectedDesc.
+		Foreground(primaryColor).
+		BorderLeftForeground(primaryColor)
+
+	sl := list.New([]list.Item{}, delegate, 0, 0)
 	sl.Title = "Search Results"
 	sl.SetShowFilter(false)
 	sl.SetShowHelp(false)
 	sl.SetShowPagination(false)
 
-	fl := list.New([]list.Item{}, list.NewDefaultDelegate(), 0, 0)
+	fl := list.New([]list.Item{}, delegate, 0, 0)
 	fl.Title = "Favorites"
 	fl.SetShowFilter(false)
 	fl.SetShowHelp(false)
@@ -173,6 +179,13 @@ func (m *Model) handleWindowSize(msg tea.WindowSizeMsg) {
 		favHeight = searchHeight
 	}
 
+	if searchHeight < 0 {
+		searchHeight = 0
+	}
+	if favHeight < 0 {
+		favHeight = 0
+	}
+
 	m.searchList.SetSize(leftWidth, searchHeight)
 	m.favList.SetSize(rightWidth, favHeight)
 }
@@ -204,8 +217,9 @@ func (m *Model) handleKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd, bool) {
 	case "f":
 		if m.focus != focusInput {
 			m.handleToggleFavorite()
+			return m, nil, true
 		}
-		return m, nil, true
+		return m, nil, false
 	}
 	return m, nil, false
 }
@@ -369,6 +383,13 @@ func (m Model) View() string {
 		favHeight = searchHeight
 	}
 
+	if searchHeight < 0 {
+		searchHeight = 0
+	}
+	if favHeight < 0 {
+		favHeight = 0
+	}
+
 	searchView := searchStyle.Width(leftWidth).Height(searchHeight).Render(m.searchList.View())
 	favView := favStyle.Width(rightWidth).Height(favHeight).Render(m.favList.View())
 
@@ -395,11 +416,4 @@ func (m Model) View() string {
 	helpView := helpStyle.Render(m.getHelpText())
 
 	return lipgloss.JoinVertical(lipgloss.Left, inputView, listsView, statusView, helpView)
-}
-
-func max(a, b int) int {
-	if a > b {
-		return a
-	}
-	return b
 }

@@ -8,9 +8,10 @@ type Station struct {
 	Country   string `json:"country"`
 	Codec     string `json:"codec"`
 	Bitrate   int    `json:"bitrate"`
-	Tags      string `json:"tags"`
-	IsFav     bool   `json:"-"`
+	Tags       string `json:"tags"`
+	IsFav      bool   `json:"-"`
 }
+
 
 func (s Station) Title() string       { return s.Name }
 func (s Station) Description() string { return s.Country + " | " + s.Codec }
